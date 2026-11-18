@@ -7,7 +7,7 @@ Prototype d'automatisation réalisé avec **n8n** et **Google Gemini** pour aide
 
 Mini-projet réalisé à l'IPSA (Bachelor 2) — Shain Kourtni.
 
-![Vue d'ensemble du workflow](docs/captures/01-workflow.png)
+![Vue d'ensemble du workflow](01-workflow.png)
 
 ---
 
@@ -40,19 +40,19 @@ flowchart LR
 
 | Formulaire | Analyse par l'IA |
 |---|---|
-| ![Formulaire](docs/captures/02-formulaire.png) | ![Chaîne LLM](docs/captures/03-chaine-llm.png) |
+| ![Formulaire](02-formulaire.png) | ![Chaîne LLM](03-chaine-llm.png) |
 
 | Format JSON imposé | Routage (Switch) |
 |---|---|
-| ![Structured Output Parser](docs/captures/04-structured-output-parser.png) | ![Switch](docs/captures/05-switch.png) |
+| ![Structured Output Parser](04-structured-output-parser.png) | ![Switch](05-switch.png) |
 
 **Email d'alerte reçu par le responsable (demande urgente)**
 
-![Email reçu par le responsable](docs/captures/07-email-responsable.png)
+![Email reçu par le responsable](07-email-responsable.png)
 
 **Historique des demandes dans Google Sheets**
 
-![Historique Google Sheets](docs/captures/09-historique-google-sheets.png)
+![Historique Google Sheets](09-historique-google-sheets.png)
 
 ---
 
@@ -100,7 +100,7 @@ Dans tous les cas, l'IA n'a inventé aucune date ni aucun remboursement, et a de
 
 ## Installer le workflow
 
-1. Dans n8n : **nouveau workflow → ⋯ → Import from File** et choisir [`workflow/assistant-demandes-clients.json`](workflow/assistant-demandes-clients.json).
+1. Dans n8n : **nouveau workflow → ⋯ → Import from File** et choisir [`assistant-demandes-clients.json`](assistant-demandes-clients.json).
 2. Créer vos propres identifiants (non inclus dans le fichier) :
    - **Google Gemini** : clé API Google AI Studio ;
    - **Gmail** et **Google Sheets** : client OAuth dans Google Cloud Console, avec l'URI de redirection affichée par n8n.
@@ -120,13 +120,11 @@ Dans tous les cas, l'IA n'a inventé aucune date ni aucun remboursement, et a de
 
 ## Contenu du dépôt
 
-```
-├── README.md
-├── workflow/
-│   └── assistant-demandes-clients.json   # workflow n8n (sans identifiants)
-└── docs/
-    ├── rapport-technique.pdf             # rapport complet du projet
-    └── captures/                         # captures d'écran
-```
+| Fichier | Contenu |
+|---|---|
+| `README.md` | Présentation du projet |
+| `assistant-demandes-clients.json` | Workflow n8n à importer (sans identifiants) |
+| [`rapport-technique.pdf`](rapport-technique.pdf) | Rapport complet du projet |
+| `01-…` à `11-….png` | Captures d'écran |
 
 Les informations personnelles (adresse email, identifiants Google, ID du Google Sheet) ont été retirées ou floutées.
