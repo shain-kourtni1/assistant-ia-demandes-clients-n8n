@@ -1,0 +1,541 @@
+{
+  "name": "Assistant IA - traitement des demandes clients",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Formulaire de demande client",
+        "formDescription": "Décrivez votre demande, notre équipe vous répondra dans les meilleurs délais.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nom",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Objet",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Message",
+              "fieldType": "textarea",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        0
+      ],
+      "id": "2cabe5c0-ed79-42ba-a5b7-b75c9061f7b8",
+      "name": "On form submission"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Tu es un assistant du service client. Analyse la demande ci-dessous et renvoie une analyse structurée.\n\nRègles strictes :\n- Tu produis une PROPOSITION de réponse soumise à validation humaine. Tu ne décides rien.\n- Tu n'annonces jamais un remboursement accordé, un geste commercial, une date de livraison, un délai chiffré ni une action déjà réalisée.\n- Tu n'inventes aucune information absente du message : ni numéro de commande, ni montant, ni date, ni transporteur.\n- Si une information essentielle manque, signale-le dans le résumé et demande-la dans la réponse.\n- Catégorie strictement parmi : livraison, remboursement, reclamation, information, autre.\n- Priorité strictement parmi : faible, normale, urgente. Urgente signifie préjudice réel, échéance imminente, client très mécontent ou relances répétées.\n- Réponse rédigée en français, ton professionnel et courtois, 4 à 8 lignes, signée \"Le service client\".\n\nDemande à analyser :\nNom : {{ $json.Nom }}\nEmail : {{ $json.Email }}\nObjet : {{ $json.Objet }}\nMessage : {{ $json.Message }}\nDate de soumission : {{ $json.submittedAt }}",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        224,
+        0
+      ],
+      "id": "f03bf4d6-d051-433a-8c62-1ee875aeb8f4",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        160,
+        208
+      ],
+      "id": "7a7c6b0c-9d1b-43c8-a380-07aff87a67e1",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "VOTRE_IDENTIFIANT",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"categorie\": \"livraison\",\n  \"priorite\": \"urgente\",\n  \"resume\": \"Le client n'a pas reçu sa commande passée il y a trois semaines, le suivi est bloqué depuis 10 jours.\",\n  \"reponse\": \"Bonjour Marie Dupont,\\n\\nNous avons bien reçu votre demande concernant votre commande non livrée.\\n\\nLe service client\",\n  \"informations_manquantes\": \"numero de commande\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        368,
+        208
+      ],
+      "id": "32fc75ad-f48c-4fa7-8f5f-79a524852d3b",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.priorite }}",
+                    "rightValue": "urgente",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c830ccff-bcfd-455d-b597-9bb40c9d55f0"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "urgente"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Réponse à valider"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        592,
+        0
+      ],
+      "id": "4023c127-5a9e-424e-b5b5-6a9cea2a1c59",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e5070714-e0d4-4188-a47f-9a26b671d3ef",
+              "name": "type_action",
+              "value": "ALERTE RESPONSABLE",
+              "type": "string"
+            },
+            {
+              "id": "1e8b045d-9ad8-487d-ae6e-d8298a93af51",
+              "name": "destinataire",
+              "value": "responsable@example.com",
+              "type": "string"
+            },
+            {
+              "id": "7e5d6c9d-7dfc-4afb-867a-965729a8269c",
+              "name": "sujet",
+              "value": "=[URGENT] {{ $json.output.categorie }} — {{ $('On form submission').item.json.Nom }}",
+              "type": "string"
+            },
+            {
+              "id": "3fc561ed-7dce-4deb-af27-d5d7350985b6",
+              "name": "corps",
+              "value": "=Demande urgente reçue.\n\nClient : {{ $('On form submission').item.json.Nom }} ({{ $('On form submission').item.json.Email }})\nObjet : {{ $('On form submission').item.json.Objet }}\nCatégorie : {{ $json.output.categorie }}\n\nRésumé : {{ $json.output.resume }}\n\nInformations manquantes : {{ $json.output.informations_manquantes }}\n\nProposition de réponse (à valider) :\n{{ $json.output.reponse }}",
+              "type": "string"
+            },
+            {
+              "id": "fe824e16-df9a-41f6-8486-7655b650ec09",
+              "name": "statut",
+              "value": "alerte_generee",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        912,
+        -176
+      ],
+      "id": "9be46ea1-866a-4da6-b829-f7c985884db5",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d6785c72-a70c-4696-9f78-b12cc3a7b4c1",
+              "name": "type_action",
+              "value": "REPONSE A VALIDER",
+              "type": "string"
+            },
+            {
+              "id": "736828e4-3373-40a5-a795-c40a94321596",
+              "name": "destinataire",
+              "value": "={{ $('On form submission').item.json.Email }}",
+              "type": "string"
+            },
+            {
+              "id": "99f69302-2116-45de-a66a-8bf372eb2705",
+              "name": "corps",
+              "value": "={{ $json.output.reponse }}",
+              "type": "string"
+            },
+            {
+              "id": "cdc436a3-77d8-438f-9f77-ac9c7a1b4ca3",
+              "name": "statut",
+              "value": "en_attente_validation",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        912,
+        176
+      ],
+      "id": "0032c6a1-647d-44c8-a3a7-770af4bd3911",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1dd1f07-2735-4253-a365-a33a9e2d4754",
+              "name": "date",
+              "value": "={{ $('On form submission').item.json.submittedAt }}",
+              "type": "string"
+            },
+            {
+              "id": "dd6ace4c-e71d-4309-9b4c-d0afa8b4455a",
+              "name": "nom",
+              "value": "={{ $('On form submission').item.json.Nom }}",
+              "type": "string"
+            },
+            {
+              "id": "a6744492-de35-4c8d-9adc-112049684ff3",
+              "name": "email",
+              "value": "={{ $('On form submission').item.json.Email }}",
+              "type": "string"
+            },
+            {
+              "id": "15ec4c3d-7edd-4e82-85a7-d0bdd1c56609",
+              "name": "message",
+              "value": "={{ $('On form submission').item.json.Message }}",
+              "type": "string"
+            },
+            {
+              "id": "7cbe30ac-4b13-44db-a36c-295e7ebd4855",
+              "name": "categorie",
+              "value": "={{ $('Basic LLM Chain').item.json.output.categorie }}",
+              "type": "string"
+            },
+            {
+              "id": "6f09b480-e8d3-413c-a7fc-7c76ac4a77aa",
+              "name": "priorite",
+              "value": "={{ $('Basic LLM Chain').item.json.output.priorite }}",
+              "type": "string"
+            },
+            {
+              "id": "0c0300f5-807d-4eab-a456-7675f1fcd974",
+              "name": "reponse",
+              "value": "={{ $('Basic LLM Chain').item.json.output.reponse }}",
+              "type": "string"
+            },
+            {
+              "id": "71cb1ea5-1187-4886-b7f5-237c38827f9a",
+              "name": "statut",
+              "value": "={{ $json.statut }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "2b439f4e-5e2b-4eeb-a037-6be869c4d91d",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "ID_DE_VOTRE_GOOGLE_SHEET",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Feuille 1"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nom",
+              "displayName": "nom",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "categorie",
+              "displayName": "categorie",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "priorite",
+              "displayName": "priorite",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "reponse",
+              "displayName": "reponse",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "statut",
+              "displayName": "statut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1408,
+        0
+      ],
+      "id": "f68899bd-1ee3-45e5-b8a5-9355e6031f11",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "VOTRE_IDENTIFIANT",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.destinataire }}",
+        "subject": "={{ $json.sujet }}",
+        "emailType": "text",
+        "message": "={{ $json.corps }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1136,
+        -176
+      ],
+      "id": "4b3a35e1-37a5-42f3-a529-faae3dee7631",
+      "name": "Send a message",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "VOTRE_IDENTIFIANT",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": [],
+  "tags": []
+}
